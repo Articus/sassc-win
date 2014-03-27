@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sassc", "sassc\sassc.vcxproj", "{6BB79383-B92A-4EFA-9582-465FB85FC748}"
+	ProjectSection(ProjectDependencies) = postProject
+		{774285C9-3476-496D-9411-E26CCB452F26} = {774285C9-3476-496D-9411-E26CCB452F26}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libsass", "libsass\libsass.vcxproj", "{774285C9-3476-496D-9411-E26CCB452F26}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9145D240-2BCF-410C-A758-140FF2986675}"
+	ProjectSection(SolutionItems) = preProject
+		gitignore = gitignore
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6BB79383-B92A-4EFA-9582-465FB85FC748}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6BB79383-B92A-4EFA-9582-465FB85FC748}.Debug|Win32.Build.0 = Debug|Win32
+		{6BB79383-B92A-4EFA-9582-465FB85FC748}.Release|Win32.ActiveCfg = Release|Win32
+		{6BB79383-B92A-4EFA-9582-465FB85FC748}.Release|Win32.Build.0 = Release|Win32
+		{774285C9-3476-496D-9411-E26CCB452F26}.Debug|Win32.ActiveCfg = Debug|Win32
+		{774285C9-3476-496D-9411-E26CCB452F26}.Debug|Win32.Build.0 = Debug|Win32
+		{774285C9-3476-496D-9411-E26CCB452F26}.Release|Win32.ActiveCfg = Release|Win32
+		{774285C9-3476-496D-9411-E26CCB452F26}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
