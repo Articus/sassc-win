@@ -38,6 +38,7 @@ extern "C" {
   void sass_free_context(sass_context* ctx)
   {
     if (ctx->output_string) free(ctx->output_string);
+    if (ctx->source_map_string) free(ctx->source_map_string);
     if (ctx->error_message) free(ctx->error_message);
 
     free_string_array(ctx->included_files, ctx->num_included_files);
@@ -86,19 +87,49 @@ extern "C" {
   {
     using namespace Sass;
     try {
+      bool source_maps = false;
+      string source_map_file = "";
+      if (c_ctx->source_map_file && (c_ctx->options.source_comments == SASS_SOURCE_COMMENTS_MAP)) {
+        source_maps = true;
+        source_map_file = c_ctx->source_map_file;
+      }
+      string input_path = c_ctx->input_path ? c_ctx->input_path : "";
+      int lastindex = input_path.find_last_of(".");
+      string output_path;
+      if (!c_ctx->output_path) {
+        if (input_path != "") {
+          output_path = (lastindex > -1 ? input_path.substr(0, lastindex) : input_path) + ".css";
+        }
+      }
+      else {
+          output_path = c_ctx->output_path;
+      }
       Context cpp_ctx(
         Context::Data().source_c_str(c_ctx->source_string)
-                       .entry_point("")
+                       .entry_point(input_path)
+                       .output_path(output_path)
                        .output_style((Output_Style) c_ctx->options.output_style)
                        .source_comments(c_ctx->options.source_comments == SASS_SOURCE_COMMENTS_DEFAULT)
-                       .source_maps(false) // Only supported for files.
-                       .image_path(c_ctx->options.image_path)
+                       .source_maps(source_maps)
+                       .source_map_file(source_map_file)
+                       .omit_source_map_url(c_ctx->omit_source_map_url)
+                       .image_path(c_ctx->options.image_path ?
+                                   c_ctx->options.image_path :
+                                   "")
                        .include_paths_c_str(c_ctx->options.include_paths)
                        .include_paths_array(0)
                        .include_paths(vector<string>())
                        .precision(c_ctx->options.precision ? c_ctx->options.precision : 5)
       );
+      if (c_ctx->c_functions) {
+        struct Sass_C_Function_Descriptor* this_func_data = c_ctx->c_functions;
+        while (this_func_data->signature && this_func_data->function) {
+          cpp_ctx.c_functions.push_back(*this_func_data);
+          ++this_func_data;
+        }
+      }
       c_ctx->output_string = cpp_ctx.compile_string();
+      c_ctx->source_map_string = cpp_ctx.generate_source_map();
       c_ctx->error_message = 0;
       c_ctx->error_status = 0;
 
@@ -110,6 +141,7 @@ extern "C" {
       c_ctx->error_message = strdup(msg_stream.str().c_str());
       c_ctx->error_status = 1;
       c_ctx->output_string = 0;
+      c_ctx->source_map_string = 0;
     }
     catch(bad_alloc& ba) {
       stringstream msg_stream;
@@ -117,6 +149,7 @@ extern "C" {
       c_ctx->error_message = strdup(msg_stream.str().c_str());
       c_ctx->error_status = 1;
       c_ctx->output_string = 0;
+      c_ctx->source_map_string = 0;
     }
     // TO DO: CATCH EVERYTHING ELSE
     return 0;
@@ -132,20 +165,38 @@ extern "C" {
         source_maps = true;
         source_map_file = c_ctx->source_map_file;
       }
-      string output_path = c_ctx->output_path ? c_ctx->output_path : "";
+      string input_path = c_ctx->input_path ? c_ctx->input_path : "";
+      int lastindex = input_path.find_last_of(".");
+      string output_path;
+      if (!c_ctx->output_path) {
+          output_path = (lastindex > -1 ? input_path.substr(0, lastindex) : input_path) + ".css";
+      }
+      else {
+          output_path = c_ctx->output_path;
+      }
       Context cpp_ctx(
-        Context::Data().entry_point(c_ctx->input_path)
-	               .output_path(output_path)
+        Context::Data().entry_point(input_path)
+                       .output_path(output_path)
                        .output_style((Output_Style) c_ctx->options.output_style)
                        .source_comments(c_ctx->options.source_comments == SASS_SOURCE_COMMENTS_DEFAULT)
                        .source_maps(source_maps)
                        .source_map_file(source_map_file)
-                       .image_path(c_ctx->options.image_path)
+                       .omit_source_map_url(c_ctx->omit_source_map_url)
+                       .image_path(c_ctx->options.image_path ?
+                                   c_ctx->options.image_path :
+                                   "")
                        .include_paths_c_str(c_ctx->options.include_paths)
                        .include_paths_array(0)
                        .include_paths(vector<string>())
                        .precision(c_ctx->options.precision ? c_ctx->options.precision : 5)
       );
+      if (c_ctx->c_functions) {
+        struct Sass_C_Function_Descriptor* this_func_data = c_ctx->c_functions;
+        while (this_func_data->signature && this_func_data->function) {
+          cpp_ctx.c_functions.push_back(*this_func_data);
+          ++this_func_data;
+        }
+      }
       c_ctx->output_string = cpp_ctx.compile_file();
       c_ctx->source_map_string = cpp_ctx.generate_source_map();
       c_ctx->error_message = 0;

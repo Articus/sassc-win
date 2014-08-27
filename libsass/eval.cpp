@@ -262,8 +262,11 @@ namespace Sass {
 
   Expression* Eval::operator()(Function_Call* c)
   {
-    Arguments* args = static_cast<Arguments*>(c->arguments()->perform(this));
     string full_name(c->name() + "[f]");
+    Arguments* args = c->arguments();
+    if (full_name != "if[f]") {
+      args = static_cast<Arguments*>(args->perform(this));
+    }
 
     // if it doesn't exist, just pass it through as a literal
     if (!env->has(full_name)) {
@@ -283,8 +286,10 @@ namespace Sass {
     Native_Function func   = def->native_function();
     Sass_C_Function c_func = def->c_function();
 
-    for (size_t i = 0, L = args->length(); i < L; ++i) {
-      (*args)[i]->value((*args)[i]->value()->perform(this));
+    if (full_name != "if[f]") {
+      for (size_t i = 0, L = args->length(); i < L; ++i) {
+        (*args)[i]->value((*args)[i]->value()->perform(this));
+      }
     }
 
     Parameters* params = def->parameters();
@@ -324,7 +329,7 @@ namespace Sass {
       Backtrace here(backtrace, c->path(), c->position(), ", in function `" + c->name() + "`");
       backtrace = &here;
 
-      result = func(*env, ctx, def->signature(), c->path(), c->position(), backtrace);
+      result = func(*env, *old_env, ctx, def->signature(), c->path(), c->position(), backtrace);
 
       backtrace = here.parent;
       env = old_env;
@@ -340,7 +345,7 @@ namespace Sass {
       backtrace = &here;
 
       To_C to_c;
-      Sass_Value c_val = c_func(args->perform(&to_c));
+      Sass_Value c_val = c_func(args->perform(&to_c), def->cookie());
       if (c_val.unknown.tag == SASS_ERROR) {
         error("error in C function " + c->name() + ": " + c_val.error.message, c->path(), c->position(), backtrace);
       }
@@ -367,7 +372,7 @@ namespace Sass {
       Backtrace here(backtrace, c->path(), c->position(), ", in function `" + c->name() + "`");
       backtrace = &here;
 
-      result = resolved_def->native_function()(*env, ctx, resolved_def->signature(), c->path(), c->position(), backtrace);
+      result = resolved_def->native_function()(*env, *old_env, ctx, resolved_def->signature(), c->path(), c->position(), backtrace);
 
       backtrace = here.parent;
       env = old_env;
@@ -477,7 +482,7 @@ namespace Sass {
   Expression* Eval::operator()(String_Schema* s)
   {
     string acc;
-    To_String to_string(&ctx);
+    To_String to_string(0);
     for (size_t i = 0, L = s->length(); i < L; ++i) {
       string chunk((*s)[i]->perform(this)->perform(&to_string));
       if (((s->quote_mark() && is_quoted(chunk)) || !s->quote_mark()) && (*s)[i]->is_interpolant()) { // some redundancy in that test

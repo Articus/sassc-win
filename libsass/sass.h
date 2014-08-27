@@ -24,6 +24,7 @@ struct Sass_Context {
   int          source_comments;
   int          source_maps;
   const char*  image_path;
+  const char*  output_path;
   const char*  include_paths_string;
   const char** include_paths_array;
   int          precision;
@@ -119,11 +120,12 @@ union Sass_Value make_sass_list    (size_t len, enum Sass_Separator sep);
 union Sass_Value make_sass_null    ();
 union Sass_Value make_sass_error   (const char* msg);
 
-typedef union Sass_Value(*Sass_C_Function)(union Sass_Value);
+typedef union Sass_Value(*Sass_C_Function)(union Sass_Value, void *cookie);
 
 struct Sass_C_Function_Descriptor {
   const char*     signature;
   Sass_C_Function function;
+  void *cookie;
 };
 
 #ifdef __cplusplus

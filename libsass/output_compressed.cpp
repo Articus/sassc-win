@@ -2,6 +2,7 @@
 #include "inspect.hpp"
 #include "ast.hpp"
 #include "context.hpp"
+#include "to_string.hpp"
 
 namespace Sass {
   using namespace std;
@@ -41,7 +42,7 @@ namespace Sass {
     // make sure they aren't output.
     // TODO: investigate why I decided to duplicate this logic in the extend visitor
     Selector_List* sl = static_cast<Selector_List*>(s);
-    if (!ctx->extensions.size()) {
+    if (ctx->extensions.empty()) {
       Selector_List* new_sl = new (ctx->mem) Selector_List(sl->path(), sl->position());
       for (size_t i = 0, L = sl->length(); i < L; ++i) {
         if (!(*sl)[i]->has_placeholder()) {
@@ -183,7 +184,16 @@ namespace Sass {
 
   void Output_Compressed::operator()(Comment* c)
   {
-    return;
+    To_String to_string;
+    string txt = c->text()->perform(&to_string);
+    if(txt[2] != '!') {
+      return;
+    }
+    else {
+      Inspect i(ctx);
+      c->perform(&i);
+      buffer += i.get_buffer();
+    }
   }
 
   void Output_Compressed::operator()(List* list)

@@ -15,7 +15,7 @@
 #endif
 
 #define BUILT_IN(name) Expression*\
-name(Env& env, Context& ctx, Signature sig, const string& path, Position position, Backtrace* backtrace)
+name(Env& env, Env& d_env, Context& ctx, Signature sig, const string& path, Position position, Backtrace* backtrace)
 
 namespace Sass {
   struct Context;
@@ -25,10 +25,10 @@ namespace Sass {
   class Definition;
   typedef Environment<AST_Node*> Env;
   typedef const char* Signature;
-  typedef Expression* (*Native_Function)(Env&, Context&, Signature, const string&, Position, Backtrace*);
+  typedef Expression* (*Native_Function)(Env&, Env&, Context&, Signature, const string&, Position, Backtrace*);
 
   Definition* make_native_function(Signature, Native_Function, Context&);
-  Definition* make_c_function(Signature sig, Sass_C_Function f, Context& ctx);
+  Definition* make_c_function(Signature sig, Sass_C_Function f, void* cookie, Context& ctx);
 
   namespace Functions {
 
@@ -64,6 +64,12 @@ namespace Sass {
     extern Signature ie_hex_str_sig;
     extern Signature unquote_sig;
     extern Signature quote_sig;
+    extern Signature str_length_sig;
+    extern Signature str_insert_sig;
+    extern Signature str_index_sig;
+    extern Signature str_slice_sig;
+    extern Signature to_upper_case_sig;
+    extern Signature to_lower_case_sig;
     extern Signature percentage_sig;
     extern Signature round_sig;
     extern Signature ceil_sig;
@@ -82,6 +88,10 @@ namespace Sass {
     extern Signature unit_sig;
     extern Signature unitless_sig;
     extern Signature comparable_sig;
+    extern Signature variable_exists_sig;
+    extern Signature global_variable_exists_sig;
+    extern Signature function_exists_sig;
+    extern Signature mixin_exists_sig;
     extern Signature not_sig;
     extern Signature if_sig;
     extern Signature image_url_sig;
@@ -115,6 +125,12 @@ namespace Sass {
     BUILT_IN(ie_hex_str);
     BUILT_IN(sass_unquote);
     BUILT_IN(sass_quote);
+    BUILT_IN(str_length);
+    BUILT_IN(str_insert);
+    BUILT_IN(str_index);
+    BUILT_IN(str_slice);
+    BUILT_IN(to_upper_case);
+    BUILT_IN(to_lower_case);
     BUILT_IN(percentage);
     BUILT_IN(round);
     BUILT_IN(ceil);
@@ -133,6 +149,10 @@ namespace Sass {
     BUILT_IN(unit);
     BUILT_IN(unitless);
     BUILT_IN(comparable);
+    BUILT_IN(variable_exists);
+    BUILT_IN(global_variable_exists);
+    BUILT_IN(function_exists);
+    BUILT_IN(mixin_exists);
     BUILT_IN(sass_not);
     BUILT_IN(sass_if);
     BUILT_IN(image_url);

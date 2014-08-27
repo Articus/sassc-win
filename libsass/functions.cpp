@@ -7,7 +7,10 @@
 #include "to_string.hpp"
 #include "inspect.hpp"
 #include "eval.hpp"
+#include "util.hpp"
+#include "utf8_string.hpp"
 
+#include <cstdlib>
 #include <cmath>
 #include <cctype>
 #include <sstream>
@@ -25,7 +28,7 @@ namespace Sass {
   {
     Parser sig_parser = Parser::from_c_str(sig, ctx, "[built-in function]");
     sig_parser.lex<Prelexer::identifier>();
-    string name(sig_parser.lexed);
+    string name(Util::normalize_underscores(sig_parser.lexed));
     Parameters* params = sig_parser.parse_parameters();
     return new (ctx.mem) Definition("[built-in function]",
                                     Position(),
@@ -36,11 +39,11 @@ namespace Sass {
                                     false);
   }
 
-  Definition* make_c_function(Signature sig, Sass_C_Function f, Context& ctx)
+  Definition* make_c_function(Signature sig, Sass_C_Function f, void* cookie, Context& ctx)
   {
     Parser sig_parser = Parser::from_c_str(sig, ctx, "[c function]");
     sig_parser.lex<Prelexer::identifier>();
-    string name(sig_parser.lexed);
+    string name(Util::normalize_underscores(sig_parser.lexed));
     Parameters* params = sig_parser.parse_parameters();
     return new (ctx.mem) Definition("[c function]",
                                     Position(),
@@ -48,6 +51,7 @@ namespace Sass {
                                     name,
                                     params,
                                     f,
+                                    cookie,
                                     false, true);
   }
 
@@ -688,6 +692,142 @@ namespace Sass {
       return result;
     }
 
+
+    Signature str_length_sig = "str-length($string)";
+    BUILT_IN(str_length)
+    {
+      String_Constant* s = ARG("$string", String_Constant);
+      string str = s->value();
+      size_t length_of_s = str.size();
+      size_t i = 0;
+
+      if (s->is_quoted()) {
+        ++i;
+        --length_of_s;
+      }
+
+      size_t len = UTF_8::code_point_count(str, i, length_of_s);
+
+      return new (ctx.mem) Number(path, position, len);
+    }
+
+    Signature str_insert_sig = "str-insert($string, $insert, $index)";
+    BUILT_IN(str_insert)
+    {
+      String_Constant* s = ARG("$string", String_Constant);
+      string str = s->value();
+      char quotemark = s->quote_mark();
+      str = unquote(str);
+      String_Constant* i = ARG("$insert", String_Constant);
+      string ins = i->value();
+      ins = unquote(ins);
+      Number* ind = ARG("$index", Number);
+      double index = ind->value();
+      size_t len = UTF_8::code_point_count(str, 0, str.size());
+
+      if (index > 0 && index <= len) {
+        // positive and within string length
+        str.insert(UTF_8::code_point_offset_to_byte_offset(str, index-1), ins);
+      }
+      else if (index > len) {
+        // positive and past string length
+        str += ins;
+      }
+      else if (index == 0) {
+        str = ins + str;
+      }
+      else if (std::abs(index) <= len) {
+        // negative and within string length
+        index += len + 1;
+        str.insert(UTF_8::code_point_offset_to_byte_offset(str, index), ins);
+      }
+      else {
+        // negative and past string length
+        str = ins + str;
+      }
+
+      if (quotemark) {
+        str = quote(str, quotemark);
+      }
+
+      return new (ctx.mem) String_Constant(path, position, str);
+
+    }
+
+    Signature str_index_sig = "str-index($string, $substring)";
+    BUILT_IN(str_index)
+    {
+      String_Constant* s = ARG("$string", String_Constant);
+      String_Constant* t = ARG("$substring", String_Constant);
+      string str = s->value();
+      str = unquote(str);
+      string substr = t->value();
+      substr = unquote(substr);
+
+      size_t c_index = str.find(substr);
+      if(c_index == string::npos) {
+        return new (ctx.mem) Null(path, position);
+      }
+      size_t index = UTF_8::code_point_count(str, 0, c_index + 1);
+
+      return new (ctx.mem) Number(path, position, index);
+    }
+
+    Signature str_slice_sig = "str-slice($string, $start-at, $end-at:-1)";
+    BUILT_IN(str_slice)
+    {
+      String_Constant* s = ARG("$string", String_Constant);
+      Number* n = ARG("$start-at", Number);
+      Number* m = ARG("$end-at", Number);
+
+      string str = s->value();
+      char quotemark = s->quote_mark();
+      str = unquote(str);
+
+      // normalize into 0-based indices
+      size_t start = UTF_8::code_point_offset_to_byte_offset(str, UTF_8::normalize_index(n->value(), UTF_8::code_point_count(str)));
+      size_t end = UTF_8::code_point_offset_to_byte_offset(str, UTF_8::normalize_index(m->value(), UTF_8::code_point_count(str)));
+
+      string newstr;
+      if(start - end == 0) {
+        newstr = str.substr(start, end - start);
+      } else {
+        newstr = str.substr(start, end - start + UTF_8::length_of_code_point_at(str, end));
+      }
+      if(quotemark) {
+        newstr = quote(newstr, quotemark);
+      }
+
+      return new (ctx.mem) String_Constant(path, position, newstr);
+
+    }
+
+    Signature to_upper_case_sig = "to-upper-case($string)";
+    BUILT_IN(to_upper_case)
+    {
+      String_Constant* s = ARG("$string", String_Constant);
+      string str = s->value();
+
+      for (size_t i = 0, L = str.length(); i < L; ++i) {
+        str[i] = std::toupper(str[i]);
+      }
+
+      return new (ctx.mem) String_Constant(path, position, str);
+    }
+
+    Signature to_lower_case_sig = "to-lower-case($string)";
+    BUILT_IN(to_lower_case)
+    {
+      String_Constant* s = ARG("$string", String_Constant);
+      string str = s->value();
+
+      for (size_t i = 0, L = str.length(); i < L; ++i) {
+        str[i] = std::tolower(str[i]);
+      }
+
+      return new (ctx.mem) String_Constant(path, position, str);
+    }
+
     ///////////////////
     // NUMBER FUNCTIONS
     ///////////////////
@@ -797,7 +937,7 @@ namespace Sass {
         *l << ARG("$list", Expression);
       }
       if (l->empty()) error("argument `$list` of `" + string(sig) + "` must not be empty", path, position);
-      size_t index = std::floor(n->value() < 0 ? l->length() + n->value() : n->value() - 1);
+      double index = std::floor(n->value() < 0 ? l->length() + n->value() : n->value() - 1);
       if (index < 0 || index > l->length() - 1) error("index out of bounds for `" + string(sig) + "`", path, position);
       return l->value_at_index(index);
     }
@@ -957,6 +1097,58 @@ namespace Sass {
       return new (ctx.mem) Boolean(path, position, n1->unit() == tmp_n2.unit());
     }
 
+    Signature variable_exists_sig = "variable-exists($name)";
+    BUILT_IN(variable_exists)
+    {
+      string s = unquote(ARG("$name", String_Constant)->value());
+
+      if(d_env.has("$"+s)) {
+        return new (ctx.mem) Boolean(path, position, true);
+      }
+      else {
+        return new (ctx.mem) Boolean(path, position, false);
+      }
+    }
+
+    Signature global_variable_exists_sig = "global-variable-exists($name)";
+    BUILT_IN(global_variable_exists)
+    {
+      string s = unquote(ARG("$name", String_Constant)->value());
+
+      if(d_env.global_frame_has("$"+s)) {
+        return new (ctx.mem) Boolean(path, position, true);
+      }
+      else {
+        return new (ctx.mem) Boolean(path, position, false);
+      }
+    }
+
+    Signature function_exists_sig = "function-exists($name)";
+    BUILT_IN(function_exists)
+    {
+      string s = unquote(ARG("$name", String_Constant)->value());
+
+      if(d_env.global_frame_has(s+"[f]")) {
+        return new (ctx.mem) Boolean(path, position, true);
+      }
+      else {
+        return new (ctx.mem) Boolean(path, position, false);
+      }
+    }
+
+    Signature mixin_exists_sig = "mixin-exists($name)";
+    BUILT_IN(mixin_exists)
+    {
+      string s = unquote(ARG("$name", String_Constant)->value());
+
+      if(d_env.global_frame_has(s+"[m]")) {
+        return new (ctx.mem) Boolean(path, position, true);
+      }
+      else {
+        return new (ctx.mem) Boolean(path, position, false);
+      }
+    }
+
     ////////////////////
     // BOOLEAN FUNCTIONS
     ////////////////////
@@ -966,8 +1158,19 @@ namespace Sass {
     { return new (ctx.mem) Boolean(path, position, ARG("$value", Expression)->is_false()); }
 
     Signature if_sig = "if($condition, $if-true, $if-false)";
+    // BUILT_IN(sass_if)
+    // { return ARG("$condition", Expression)->is_false() ? ARG("$if-false", Expression) : ARG("$if-true", Expression); }
     BUILT_IN(sass_if)
-    { return ARG("$condition", Expression)->is_false() ? ARG("$if-false", Expression) : ARG("$if-true", Expression); }
+    {
+      Eval eval(ctx, &d_env, backtrace);
+      bool is_true = !ARG("$condition", Expression)->perform(&eval)->is_false();
+      if (is_true) {
+        return ARG("$if-true", Expression)->perform(&eval);
+      }
+      else {
+        return ARG("$if-false", Expression)->perform(&eval);
+      }
+    }
 
     ////////////////
     // URL FUNCTIONS

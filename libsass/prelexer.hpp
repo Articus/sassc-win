@@ -369,6 +369,7 @@ namespace Sass {
     // Match CSS type selectors
     const char* namespace_prefix(const char* src);
     const char* type_selector(const char* src);
+    const char* hyphens_and_identifier(const char* src);
     const char* universal(const char* src);
     // Match CSS id names.
     const char* id_name(const char* src);
@@ -396,6 +397,7 @@ namespace Sass {
     const char* important(const char* src);
     // Match Sass "!default" keyword.
     const char* default_flag(const char* src);
+    const char* global_flag(const char* src);
     // Match CSS pseudo-class/element prefixes
     const char* pseudo_prefix(const char* src);
     // Match CSS function call openers.

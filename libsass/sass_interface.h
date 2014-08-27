@@ -1,6 +1,8 @@
 #define SASS_INTERFACE
 
 #include "sass.h"
+#include <stdbool.h>
+#include "sass2scss/sass2scss.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,12 +26,17 @@ struct sass_options {
 };
 
 struct sass_context {
+  const char* input_path;
+  const char* output_path;
   const char* source_string;
   char* output_string;
+  char* source_map_string;
+  const char* source_map_file;
+  bool omit_source_map_url;
   struct sass_options options;
   int error_status;
   char* error_message;
-  struct Sass_C_Function_Data* c_functions;
+  struct Sass_C_Function_Descriptor* c_functions;
   char** included_files;
   int num_included_files;
 };
@@ -40,10 +47,11 @@ struct sass_file_context {
   char* output_string;
   char* source_map_string;
   const char* source_map_file;
+  bool omit_source_map_url;
   struct sass_options options;
   int error_status;
   char* error_message;
-  struct Sass_C_Function_Data* c_functions;
+  struct Sass_C_Function_Descriptor* c_functions;
   char** included_files;
   int num_included_files;
 };
@@ -54,7 +62,7 @@ struct sass_folder_context {
   struct sass_options options;
   int error_status;
   char* error_message;
-  struct Sass_C_Function_Data* c_functions;
+  struct Sass_C_Function_Descriptor* c_functions;
   char** included_files;
   int num_included_files;
 };
